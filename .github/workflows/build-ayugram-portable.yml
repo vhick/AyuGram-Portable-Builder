@@ -1,0 +1,66 @@
+name: Build AyuGram Portable (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: 'Official release tag (e.g. v7.2.9), or latest'
+        required: true
+        default: latest
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Package official Windows x64 release
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout portable builder
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install icon extraction tools
+        run: python -m pip install --disable-pip-version-check icoextract==0.3.0 Pillow==11.3.0
+
+      - name: Self-test builder logic
+        run: python -m unittest discover -v -s tests
+
+      - name: Download official AyuGram release and create portable package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_REF: ${{ inputs.upstream_ref }}
+        run: python tools/build.py --release "$env:UPSTREAM_REF" --out dist
+
+      - name: Compile AyuGramPortable.exe with the upstream icon
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          if (!(Test-Path -LiteralPath $csc)) { throw 'The .NET Framework C# compiler is missing on this runner.' }
+          $icon = (Resolve-Path 'dist/AyuGramPortable/App/AppInfo/appicon.ico').Path
+          $exe = Join-Path (Resolve-Path 'dist/AyuGramPortable').Path 'AyuGramPortable.exe'
+          & $csc /nologo /target:winexe /platform:x64 /optimize+ "/win32icon:$icon" "/out:$exe" /reference:System.Windows.Forms.dll launcher/AyuGramPortable.cs
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $exe)) { throw 'Portable launcher compilation failed.' }
+
+      - name: Verify layout, native launcher, and user-data isolation
+        run: python tools/verify.py --root dist/AyuGramPortable
+
+      - name: Create final ZIP with one top-level AyuGramPortable folder
+        shell: pwsh
+        run: python tools/package.py --root dist/AyuGramPortable --out dist/AyuGramPortable-Win64.zip
+
+      - name: Publish ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AyuGram-Portable-Windows-x64
+          path: dist/AyuGramPortable-Win64.zip
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
