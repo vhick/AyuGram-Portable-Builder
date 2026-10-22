@@ -44,10 +44,23 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
           if (!(Test-Path -LiteralPath $csc)) { throw 'The .NET Framework C# compiler is missing on this runner.' }
-          $icon = (Resolve-Path 'dist/AyuGramPortable/App/AppInfo/appicon.ico').Path
-          $exe = Join-Path (Resolve-Path 'dist/AyuGramPortable').Path 'AyuGramPortable.exe'
-          & $csc /nologo /target:winexe /platform:x64 /optimize+ "/win32icon:$icon" "/out:$exe" /reference:System.Windows.Forms.dll launcher/AyuGramPortable.cs
-          if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $exe)) { throw 'Portable launcher compilation failed.' }
+          # IMPORTANT: The .NET Framework csc.exe can strip the folder component
+          # from a relative source path that contains a forward slash.
+          # Resolve the .cs file to an absolute Windows path before compilation.
+          $source = (Resolve-Path -LiteralPath '.\launcher\AyuGramPortable.cs' -ErrorAction Stop).Path
+          $icon = (Resolve-Path -LiteralPath '.\dist\AyuGramPortable\App\AppInfo\appicon.ico' -ErrorAction Stop).Path
+          $destination = (Resolve-Path -LiteralPath '.\dist\AyuGramPortable' -ErrorAction Stop).Path
+          $exe = Join-Path $destination 'AyuGramPortable.exe'
+          if (!(Test-Path -LiteralPath $source -PathType Leaf)) { throw "Launcher source file missing: $source" }
+          if (!(Test-Path -LiteralPath $icon -PathType Leaf)) { throw "App icon missing: $icon" }
+          Write-Host "Launcher source: $source"
+          Write-Host "Original icon: $icon"
+          Write-Host "Output launcher: $exe"
+          # Pass the absolute .cs path as one distinct compiler argument.
+          & $csc '/nologo' '/target:winexe' '/platform:x64' '/optimize+' "/win32icon:$icon" "/out:$exe" '/reference:System.Windows.Forms.dll' $source
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $exe -PathType Leaf)) {
+            throw "Portable launcher compilation failed (compiler exit code $LASTEXITCODE)."
+          }
 
       - name: Verify layout, native launcher, and user-data isolation
         run: python tools/verify.py --root dist/AyuGramPortable

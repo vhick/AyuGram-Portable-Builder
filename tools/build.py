@@ -17,7 +17,7 @@ import urllib.request
 import zipfile
 
 OWNER_REPO = "AyuGram/AyuGramDesktop"
-USER_AGENT = "AyuGram-Portable-Builder/1.0"
+USER_AGENT = "AyuGram-Portable-Builder/1.1"
 
 
 def request_bytes(url: str) -> bytes:
@@ -148,7 +148,7 @@ Start=AyuGramPortable.exe
     other = root / "Other"
     other.mkdir(parents=True, exist_ok=True)
     info = {
-        "builder_version": "1.0",
+        "builder_version": "1.1",
         "upstream": f"https://github.com/{OWNER_REPO}",
         "release_tag": tag,
         "download_url": asset["browser_download_url"],
@@ -157,7 +157,7 @@ Start=AyuGramPortable.exe
         "portable_data_directory": "Data",
     }
     (other / "build-info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
-    (other / "README-PORTABLE.txt").write_text('''AyuGram Desktop Portable — builder 1.0
+    (other / "README-PORTABLE.txt").write_text('''AyuGram Desktop Portable — builder 1.1
 
 START: Run AyuGramPortable.exe in the root folder.
 DATA: Keep Data/ when updating. Login credentials, settings, caches and

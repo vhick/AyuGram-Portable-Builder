@@ -1,6 +1,12 @@
-# AyuGram Desktop Portable Builder v1.0
+# AyuGram Desktop Portable Builder v1.1
 
 A **manual, Windows x64 GitHub Actions builder** that repackages the **official, already-compiled** [AyuGram Desktop](https://github.com/AyuGram/AyuGramDesktop) Windows release into the user's PortableApps-style structure. It does not compile AyuGram's giant C++ codebase or replace its original program files.
+
+## What's fixed in v1.1
+
+The uploaded GitHub Actions log showed an error in the **Compile AyuGramPortable.exe with the upstream icon** step (`CS1504`). The compiler was given the relative source path `launcher/AyuGramPortable.cs` and searched for the file in the repository root. The workflow now resolves the source file, icon, and output path to full Windows paths, checks their existence, and passes the absolute C# source filename directly to `csc.exe`.
+
+**To upgrade from v1.0:** Replace the original builder repository files with the files in this archive (particularly `.github/workflows/build-ayugram-portable.yml`), then rerun the manual workflow. This issue is in the builder, not in AyuGram itself. No changes to existing portable `Data` are needed.
 
 ## Build in your browser
 
